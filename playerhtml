@@ -1,0 +1,18 @@
+<body><center></center><center> <!-- BEGINS: AUTO-GENERATED MUSES RADIO PLAYER CODE -->
+<script type="text/javascript" src="https://hosted.muses.org/mrp.js"></script>
+<script type="text/javascript">
+MRP.insert({
+'url':'https://radio.dogmazic.net:8000/stream.ogg',
+'codec':'ogg',
+'volume':60,
+'autoplay':true,
+'forceHTML5':true,
+'jsevents':true,
+'buffering':0,
+'title':'Radio Dogmazic',
+'wmode':'transparent',
+'skin':'abrahadabra2',
+'width':100,
+'height':141
+});</script><!-- ENDS: AUTO-GENERATED MUSES RADIO PLAYER CODE --> </center><center><object data="http://radio.dogmazic.net:8000/nowplaying.xsl" type="text/html" width="467" height="25"></object>
+</center> </center>
