@@ -1,3 +1,6 @@
+<?php
+header("Access-Control-Allow-Origin: *");
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,12 +24,12 @@
 
 <body>
 <center>
-<img src="https://github.com/musique-libre/radio.dogmazic.net/raw/main/Logo-DGZ-TRANSPARENT.png" alt="dogmazic radio" width=400/></center><center> <!-- BEGINS: AUTO-GENERATED MUSES RADIO PLAYER CODE -->
+<img src="Logo-DGZ-TRANSPARENT.png" alt="dogmazic radio" width=400/></center><center> <!-- BEGINS: AUTO-GENERATED MUSES RADIO PLAYER CODE -->
 <script type="text/javascript" src="https://hosted.muses.org/mrp.js"></script>
 <script type="text/javascript">
 MRP.insert({
-'url':'https://radio.dogmazic.net:8000/stream.ogg',
-'codec':'ogg',
+'url':'/stream.mp3',
+'codec':'mp3',
 'volume':60,
 'autoplay':true,
 'forceHTML5':true,
@@ -37,6 +40,6 @@ MRP.insert({
 'skin':'abrahadabra2',
 'width':100,
 'height':141
-});</script><!-- ENDS: AUTO-GENERATED MUSES RADIO PLAYER CODE --> </center><center><object data="https://radio.dogmazic.net:8000/nowplaying.xsl" type="text/html" width="467" height="25"></object></center> </center>
+});</script><!-- ENDS: AUTO-GENERATED MUSES RADIO PLAYER CODE --> </center><center><object data="/nowplaying.xsl" type="text/html" width="467" height="25"></object></center> </center>
 </body>
 </html>

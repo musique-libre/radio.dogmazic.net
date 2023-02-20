@@ -1,0 +1,7 @@
+<Files "README.md">  
+  Require all denied
+</Files>
+
+<Files "nowplaying.xsl">  
+  Require all denied
+</Files>
