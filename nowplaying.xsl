@@ -15,11 +15,12 @@
    <style type="text/css">
     #song_info span {
         text-overflow: ellipsis;
-        max-width: 300px;
+        max-width: 200px;
         overflow: hidden;
         display: inline-block;
         white-space: nowrap;
         padding-right: 4px;
+        padding-left: 4px;
     }
     
     #listeners {
@@ -32,12 +33,23 @@
 <xsl:for-each select="source">
   <xsl:if test="title">
      <span id="song_info">
-         <span><a href="#" onClick="goSearchArtist();" title="Show this artist on Dogmazic" id="idartist"><xsl:value-of select="artist" /></a></span>
+         <span><a href="/metadata.php?wanted=artist_go" title="Show this artist on Dogmazic" id="idartist" target="_blank"><xsl:value-of select="artist" /></a></span>
          <span>-</span>
-         <span><a href="#" onClick="goSearchSong();" title="Show this song on Dogmazic" id="idtitle"><xsl:value-of select="title" /></a></span>
+         <span><a href="/metadata.php?wanted=song_go" title="Show this song on Dogmazic" id="idtitle" target="_blank"><xsl:value-of select="title" /></a></span>
          <script type="text/javascript">
              var artist='<xsl:value-of select="artist" />'.trim();
              var title='<xsl:value-of select="title" />'.trim();
+
+             // Handle "special" chars.
+             // Icecast give some chars in HTML (like "徒 setto セ")
+             // So we need to decode HTML before handling them
+             // Debug example:
+             // var title='&#24466; Setto &#12475;&#12483;&#12488; - Menomoia'.trim();
+             var textArea = document.createElement('textarea');
+             textArea.innerHTML = artist;
+             artist = textArea.value;
+             textArea.innerHTML = title;
+             title = textArea.value;
 
              // Handle when everything is just in the "title"
              if ( artist.length == 0 ) {
@@ -48,20 +60,11 @@
                      title = found[2]
                  }
              }
-             artist = decodeURI(artist);
-             title = decodeURI(title);
 
+             // Now that everything is clean, go with if
              document.getElementById('idartist').innerHTML = artist;
              document.getElementById('idtitle').innerHTML = title; // Handle UTF-8
 
-             
-             function goSearchArtist() {
-                window.open('//play.dogmazic.net/search.php?type=song&amp;action=search&amp;type=artist&amp;rule_1_operator=0&amp;rule_1=name&amp;rule_1_input=' + encodeURI(artist));
-             }
-             
-             function goSearchSong() {
-                window.open('//play.dogmazic.net/search.php?type=song&amp;action=search&amp;type=song&amp;rule_1_operator=0&amp;rule_1=artist&amp;rule_1_input=' + encodeURI(artist) + '&amp;rule_2_operator=0&amp;rule_2=title&amp;rule_2_input=' + encodeURI(title));
-             }
          </script>
      </span>
   </xsl:if>

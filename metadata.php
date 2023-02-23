@@ -86,7 +86,9 @@ switch($wanted){
     go($obj->song_url);
     break;
   case 'json':
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode($obj);
+    exit();
     break;
   default:
     echo $obj->artist." - ".$obj->album." - ".$obj->title;
