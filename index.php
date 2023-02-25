@@ -96,8 +96,7 @@ function refreshInfos() {
   }
 
   // Ok, get the refresh infos
-  $.get("/metadata.php?wanted=json", function( data ) {
-    var obj = jQuery.parseJSON( data );
+  $.getJSON("/metadata.php?wanted=json", function( obj ) {
 
     // If we already set this song infos, quit
     if ( current_song_id == obj['title_id'] ) {
