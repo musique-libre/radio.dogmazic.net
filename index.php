@@ -37,7 +37,7 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
 
 <div class="center">
 
-  <img src="/Logo-DGZ-TRANSPARENT.png" alt="Dogmazic Logo" width="400" height="515">
+  <img src="/Logo-DGZ-TRANSPARENT.png" alt="Dogmazic Logo" width="400" height="515" style="width: 80%; max-width: 400px; height: auto;">
 
   <br>
   <br>
@@ -62,16 +62,17 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
     <br>
 
     <a href="#" target=_blank id="link_album">
-      <img src='/blank_album_art.png' alt="Album Art" title="Show this album on Dogmazic" id="albumart" width="125" height="125">
+      <img src='/blank_album_art.png' alt="Album Art" title="Show this album on Dogmazic" id="albumart" width="125" height="125" style="width:60%; max-width: 125px; height: auto;">
       <br>
       <span id="album_title"></span>
     </a>
   </div>
 
-  <img src='/pause.png' alt="Pause" title="Paused" id="pauseimg" width="125" height="125" onclick="playRadio()">
+  <img src='/pause.png' alt="Pause" title="Paused" id="pauseimg" width="125" height="125" onclick="playRadio()" style="width:60%; max-width: 125px; height: auto;">
 
 </div>
 
+<br/>
 
 <script>
 
