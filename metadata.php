@@ -1,45 +1,64 @@
 <?php
 
+define('CACHE_IN_SECONDS', 5);
 include_once('conf.inc.php');
 
-// Ce script retourne le fichier exact en cours de lecture par Ezstream.
-// Il utilise lsof :
-// $ lsof -c ezstream -Fn|grep '^n/var' | sed -e 's/^n//g'
-exec('/usr/bin/sudo /etc/ezstream/get_running_ziq.sh', $output, $rcode);
 
-// Pas de fichier, ezstream ne tourne peut-être pas.
-if (empty($output)) die('No music');
+// Léger cache Memcached
+$m = new Memcached();
+$m->addServer('localhost', 11211);
 
-$ziq = $output[0];
+$obj = $m->get('metadata');
+if ( !$obj || empty( $obj ) ){
+  // Ce script retourne le fichier exact en cours de lecture par Ezstream.
+  // Il utilise lsof :
+  // $ lsof -c ezstream -Fn|grep '^n/var' | sed -e 's/^n//g'
+  #exec('/usr/bin/sudo /etc/ezstream/get_running_ziq.sh', $output, $rcode);
+  // En compilant le script avec shc et en lui mettant un setuid
+  // cela permet de l'executer sans sudo, ce qui allége les logs
+  exec('/etc/ezstream/get_running_ziq.sh.x', $output, $rcode);
 
-$db = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) or die("Database error");
+  // Pas de fichier, ezstream ne tourne peut-être pas.
+  if (empty($output)) die('No music');
 
-$query = "
-select 
-  a.name as artist, 
-  a.id as artist_id, 
-  al.name as album, 
-  al.id as album_id, 
-  s.title, 
-  s.id as title_id 
-from 
-  song s, 
-  artist a, 
-  album al 
-where 
-  a.id = s.artist 
-  and al.id = s.album 
-  and s.file='". $db->real_escape_string( $ziq  )  ."' 
-limit 1;";
+  $ziq = $output[0];
 
-$result = $db->query($query);
+  $db = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) or die("Database error");
 
-$obj = $result->fetch_object() ;
+  $query = "
+  select
+    a.name as artist,
+    a.id as artist_id,
+    al.name as album,
+    al.id as album_id,
+    s.title,
+    s.id as title_id
+  from
+    song s,
+    artist a,
+    album al
+  where
+    a.id = s.artist
+    and al.id = s.album
+    and s.file='". $db->real_escape_string( $ziq  )  ."'
+  limit 1;";
 
-if (is_null($obj)) die();
+  $result = $db->query($query);
+
+  $obj = $result->fetch_object() ;
+
+  if (is_null($obj)) die();
+
+  $m->set('metadata', $obj, CACHE_IN_SECONDS);
+}
+
 
 if (isset($_GET['wanted'])) {
   $wanted=strtolower(trim($_GET['wanted']));
+} else if ( $argc == 2)  {
+  $wanted=trim(strtolower($argv[1]));
+} else {
+  $wanted='default';
 }
 
 // Add some usefull properties
@@ -76,12 +95,15 @@ switch($wanted){
   case 'album_go':
     go($obj->album_url);
     break;
+  case 'title':
   case 'song':
     echo $obj->title;
     break;
+  case 'title_url':
   case 'song_url':
     echo $obj->song_url;
     break;
+  case 'title_go':
   case 'song_go':
     go($obj->song_url);
     break;
@@ -91,7 +113,8 @@ switch($wanted){
     exit();
     break;
   default:
-    echo $obj->artist." - ".$obj->album." - ".$obj->title;
+    #echo $obj->artist." - ".$obj->album." - ".$obj->title;
+    echo $obj->artist." - ".$obj->title;
     break;
 }
 
