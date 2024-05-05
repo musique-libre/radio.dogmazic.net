@@ -13,7 +13,7 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
   <meta name="team" content="">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <script src="/jquery-3.6.3.min.js" ></script>
+  <script src="/jquery-3.7.1.min.js" ></script>
 
   <style>
     body {

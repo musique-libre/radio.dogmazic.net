@@ -50,6 +50,8 @@ if ( !$obj || empty( $obj ) ){
   if (is_null($obj)) die();
 
   $m->set('metadata', $obj, CACHE_IN_SECONDS);
+
+  $db->close();
 }
 
 

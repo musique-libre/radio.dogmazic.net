@@ -37,8 +37,8 @@
          <span>-</span>
          <span><a href="//radio.dogmazic.net/metadata.php?wanted=song_go" title="Show this song on Dogmazic" id="idtitle" target="_blank"><xsl:value-of select="title" /></a></span>
          <script type="text/javascript">
-             var artist='<xsl:value-of select="artist" />'.trim();
-             var title='<xsl:value-of select="title" />'.trim();
+             var artist="<xsl:value-of select="artist" />".trim();
+             var title="<xsl:value-of select="title" />".trim();
 
              // Handle "special" chars.
              // Icecast give some chars in HTML (like "徒 setto セ")
