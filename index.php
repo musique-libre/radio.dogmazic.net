@@ -93,14 +93,19 @@ function refreshInfos() {
   if ( document.getElementById('dogplayer').paused ) {
     $("#display_infos").hide();
     $("#pauseimg").show();
+    document.title = "Radio Dogmazic - Paused";
     return;
   }
 
   // Ok, get the refresh infos
   $.getJSON("/metadata.php?wanted=json", function( obj ) {
 
+    document.title = "Radio Dogmazic - Playing \"" + obj['artist'] + " - " + obj['title'] + "\"";
+
     // If we already set this song infos, quit
     if ( current_song_id == obj['title_id'] ) {
+      $("#pauseimg").hide();
+      $("#display_infos").show();
       return;
     }
     current_song_id = obj['title_id'];

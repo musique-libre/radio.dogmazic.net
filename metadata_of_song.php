@@ -1,28 +1,21 @@
 <?php
 
-define('CACHE_IN_SECONDS', 5);
+define('CACHE_IN_SECONDS', 500);
 include_once('conf.inc.php');
 
 header('Access-Control-Allow-Origin: *');
+
+$song_id=intval($_REQUEST['song_id']);
+if ($song_id == 0 ) die('No song id');
 
 // Léger cache Memcached
 $m = new Memcached();
 $m->addServer('localhost', 11211);
 
-$obj = $m->get('metadata');
+$metadata_keyname = 'metadata_song_'.intval($song_id);
+
+$obj = $m->get($metadata_keyname);
 if ( !$obj || empty( $obj ) ){
-  // Ce script retourne le fichier exact en cours de lecture par Ezstream.
-  // Il utilise lsof :
-  // $ lsof -c ezstream -Fn|grep '^n/var' | sed -e 's/^n//g'
-  #exec('/usr/bin/sudo /etc/ezstream/get_running_ziq.sh', $output, $rcode);
-  // En compilant le script avec shc et en lui mettant un setuid
-  // cela permet de l'executer sans sudo, ce qui allége les logs
-  exec('/etc/ezstream/get_running_ziq.sh.x', $output, $rcode);
-
-  // Pas de fichier, ezstream ne tourne peut-être pas.
-  if (empty($output)) die('No music');
-
-  $ziq = $output[0];
 
   $db = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) or die("Database error");
 
@@ -41,7 +34,7 @@ if ( !$obj || empty( $obj ) ){
   where
     a.id = s.artist
     and al.id = s.album
-    and s.file='". $db->real_escape_string( $ziq  )  ."'
+    and s.id='". $db->real_escape_string( $song_id  )  ."'
   limit 1;";
 
   $result = $db->query($query);
@@ -50,7 +43,7 @@ if ( !$obj || empty( $obj ) ){
 
   if (is_null($obj)) die();
 
-  $m->set('metadata', $obj, CACHE_IN_SECONDS);
+  $m->set($metadata_keyname, $obj, CACHE_IN_SECONDS);
 
   $db->close();
 }
