@@ -72,7 +72,7 @@ if (isset($_GET['wanted'])) {
 $obj->artist_url="https://play.dogmazic.net/artists.php?action=show&artist=" . $obj->artist_id;
 $obj->album_url ="https://play.dogmazic.net/albums.php?action=show&album=" . $obj->album_id;
 $obj->song_url  ="https://play.dogmazic.net/song.php?action=show_song&song_id=" . $obj->title_id;
-$obj->label_img = "https://play.dogmazic.net/image.php?object_id=" . $obj->album_id . "&object_type=album&thumb=125";
+$obj->label_img = "https://play.dogmazic.net/image.php?object_id=" . $obj->album_id . "&object_type=album&size=200x200";
 
 // If you want to redirect somewhere...
 function go($url)
