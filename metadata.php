@@ -85,6 +85,9 @@ switch ($wanted) {
     case 'img':
         echo $obj->label_img;
         break;
+    case 'img_go':
+        go($obj->label_img);
+        break;
     case 'artist':
         echo $obj->artist;
         break;
