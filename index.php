@@ -349,7 +349,8 @@ var I18N = {
     brandLink:"Ouvrir la Bibliothèque Dogmazic",
     metaDesc:"Le compagnon musical de l’association Musique Libre : musique libre en continu, licence choisie par chaque artiste.",
     langBtn:"EN", langBtnAria:"Switch to English", volume:"Volume",
-    animStop:"Couper l\u2019animation", animStart:"R\u00e9activer l\u2019animation"
+    animStop:"Couper l\u2019animation", animStart:"R\u00e9activer l\u2019animation",
+    connecting:"Connexion\u2026"
   },
   en: {
     offAir:"Off air", live:"On air", paused:"Paused",
@@ -365,7 +366,8 @@ var I18N = {
     brandLink:"Open the Dogmazic Music Library",
     metaDesc:"Musique Libre’s musical companion: free music around the clock, each artist chooses their own license.",
     langBtn:"FR", langBtnAria:"Passer en fran\u00e7ais", volume:"Volume",
-    animStop:"Turn animation off", animStart:"Turn animation on"
+    animStop:"Turn animation off", animStart:"Turn animation on",
+    connecting:"Connecting\u2026"
   }
 };
 
@@ -423,19 +425,39 @@ function setPlayingUI(on){
     : '<path d="M7 5v14l12-7z"/>';
 }
 
+var everLoaded = false, pausedAt = 0;
+var RELOAD_AFTER_MS = 30000;   /* longue pause : on recharge pour revenir au direct */
+
 playBtn.addEventListener("click", function(){
   ensureAudioGraph();
   if (player.paused){
-    /* (re)charge la source au clic : évite du buffering silencieux au chargement */
-    if (!player.src && player.querySelector("source")) player.load();
+    /* Charger une seule fois. NB : avec une balise <source>, player.src reste vide,
+       tester dessus rechargeait le flux à CHAQUE reprise (re-buffering complet). */
+    if (!everLoaded){
+      player.load();
+      everLoaded = true;
+    } else if (pausedAt && (Date.now() - pausedAt) > RELOAD_AFTER_MS){
+      player.load();               /* retour au direct après une longue pause */
+    }
     player.play().catch(function(){ /* l'utilisateur peut relancer */ });
   } else {
     player.pause();
   }
 });
 
-player.addEventListener("play",  function(){ setPlayingUI(true);  refreshInfos(); });
-player.addEventListener("pause", function(){ setPlayingUI(false); refreshInfos(); });
+player.addEventListener("play",  function(){
+  setPlayingUI(true);
+  if (player.readyState < 3) $("statusText").textContent = T("connecting");
+  refreshInfos();
+});
+/* la lecture démarre (ou reprend après un creux de buffering) réellement ici */
+player.addEventListener("playing", function(){ $("statusText").textContent = T("live"); });
+player.addEventListener("waiting", function(){ $("statusText").textContent = T("connecting"); });
+player.addEventListener("pause", function(){
+  pausedAt = Date.now();
+  setPlayingUI(false);
+  refreshInfos();
+});
 
 $("volume").addEventListener("input", function(e){ player.volume = parseFloat(e.target.value); });
 player.volume = 0.9;
