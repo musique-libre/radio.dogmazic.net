@@ -8,7 +8,7 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
   <meta charset="UTF-8">
   <title>Radio Dogmazic</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" id="metaDesc" content="La webradio de l'association Musique Libre : musique libre en continu, licence choisie par chaque artiste.">  <link rel="icon" href="/favicon.ico">
+  <meta name="description" id="metaDesc" content="Le compagnon musical de l'association Musique Libre : musique libre en continu, licence choisie par chaque artiste.">  <link rel="icon" href="/favicon.ico">
   <style>
     /* ---- Jetons de design ---------------------------------------------- */
     :root{
@@ -106,6 +106,9 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
     }
     /* On ne montre que le médaillon (haut ~78 % de l'image) ; le script orange,
        illisible sur clair, est masqué par le débordement. */
+    a.brand{transition:box-shadow .2s ease;}
+    a.brand:hover{box-shadow:0 6px 18px rgba(240,96,0,.45);}
+    a.brand:focus-visible{outline:3px solid var(--accent-2);outline-offset:2px;}
     .brand__clip{width:50px;height:50px;overflow:hidden;line-height:0;}
     .brand__clip img{width:50px;height:auto;display:block;}
 
@@ -257,7 +260,7 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
       </span>
       <span class="top-right">
         <button class="lang" id="langBtn" type="button" aria-label="Switch to English">EN</button>
-        <span class="brand"><span class="brand__clip"><img src="/Logo-DGZ-TRANSPARENT.png" alt="Dogmazic" width="400" height="515"></span></span>
+        <a class="brand" id="brandLink" href="https://play.dogmazic.net" target="_blank" rel="noopener"><span class="brand__clip"><img src="/Logo-DGZ-TRANSPARENT.png" alt="Dogmazic" width="400" height="515"></span></a>
       </span>
     </header>
 
@@ -296,8 +299,8 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
 
     <footer class="radio__foot">
       <span id="footLine1">Musique libre · licence choisie par chaque artiste</span><br>
-      <span id="footLine2">Une webradio de l’</span><a id="footAssoc" href="https://musique-libre.org" target="_blank" rel="noopener">association Musique&nbsp;Libre</a>
-      · <a id="footLib" href="https://play.dogmazic.net" target="_blank" rel="noopener">bibliothèque Dogmazic</a>
+      <span id="footLine2">Le compagnon musical de l’</span><a id="footAssoc" href="https://musique-libre.org" target="_blank" rel="noopener">association Musique&nbsp;Libre</a>
+      · <a id="footLib" href="https://play.dogmazic.net" target="_blank" rel="noopener">Bibliothèque Dogmazic</a>
     </footer>
   </main>
 
@@ -314,8 +317,12 @@ var PREVIEW = false;
 var CFG = {
   metadataUrl: "/metadata.php?wanted=json",
   pollMs: 5000,
-  useWebAudio: true    /* mettre à false si un flux non-CORS coupe le son sur iOS :
-                          la lecture reste native, le spectre passe en animation synthétique */
+  useWebAudio: false   /* IMPORTANT — laisser à false tant qu'Icecast (:8001) n'envoie pas
+                          d'en-têtes CORS. Le flux est cross-origin (port différent) : routé
+                          dans Web Audio sans CORS, il est réduit AU SILENCE par le navigateur,
+                          et c'est irréversible pour la session. Pour activer le vrai spectre :
+                          1) en-têtes CORS côté Icecast, 2) crossorigin="anonymous" sur <audio>,
+                          3) repasser ce drapeau à true. Le spectre synthétique reste actif. */
 };
 
 /* Préférence utilisateur : animation du spectre (persistée localement) */
@@ -338,8 +345,9 @@ var I18N = {
     coverAlt:"Pochette de l’album",
     fallback:"Lecteur HTML5 indisponible ? ", fallbackLink:"Flux direct", fallbackEnd:".",
     footLine1:"Musique libre · licence choisie par chaque artiste",
-    footLine2:"Une webradio de l’", footAssoc:"association Musique\u00a0Libre", footLib:"bibliothèque Dogmazic",
-    metaDesc:"La webradio de l’association Musique Libre : musique libre en continu, licence choisie par chaque artiste.",
+    footLine2:"Le compagnon musical de l’", footAssoc:"association Musique\u00a0Libre", footLib:"Bibliothèque Dogmazic",
+    brandLink:"Ouvrir la Bibliothèque Dogmazic",
+    metaDesc:"Le compagnon musical de l’association Musique Libre : musique libre en continu, licence choisie par chaque artiste.",
     langBtn:"EN", langBtnAria:"Switch to English", volume:"Volume",
     animStop:"Couper l\u2019animation", animStart:"R\u00e9activer l\u2019animation"
   },
@@ -353,8 +361,9 @@ var I18N = {
     coverAlt:"Album cover",
     fallback:"HTML5 player not working? ", fallbackLink:"Direct stream", fallbackEnd:".",
     footLine1:"Free music · each artist chooses their own license",
-    footLine2:"A web radio by the ", footAssoc:"Musique\u00a0Libre association", footLib:"Dogmazic music library",
-    metaDesc:"Musique Libre’s web radio: free music around the clock, each artist chooses their own license.",
+    footLine2:"A musical companion by the ", footAssoc:"Musique\u00a0Libre association", footLib:"Dogmazic Music Library",
+    brandLink:"Open the Dogmazic Music Library",
+    metaDesc:"Musique Libre’s musical companion: free music around the clock, each artist chooses their own license.",
     langBtn:"FR", langBtnAria:"Passer en fran\u00e7ais", volume:"Volume",
     animStop:"Turn animation off", animStart:"Turn animation on"
   }
@@ -386,6 +395,8 @@ function setLang(l){
   $("langBtn").textContent = T("langBtn");
   $("langBtn").setAttribute("aria-label", T("langBtnAria"));
   $("volume").setAttribute("aria-label", T("volume"));
+  $("brandLink").title = T("brandLink");
+  $("brandLink").setAttribute("aria-label", T("brandLink"));
   updateAnimBtn();
   if ($("now").classList.contains("now--idle")) $("linkSong").textContent = T("idleTitle");
   setPlayingUI(!player.paused);   /* réapplique statut + bouton dans la nouvelle langue */
@@ -544,7 +555,9 @@ sizeCanvas();
 
 function ensureAudioGraph(){
   if (graphReady || PREVIEW) return;
-  if (!CFG.useWebAudio){ useSim = true; return; }  /* spectre synthétique, on ne touche pas au son */
+  /* Double sécurité : même drapeau à true, on ne route jamais un flux
+     sans attribut crossorigin — sinon le navigateur coupe le son. */
+  if (!CFG.useWebAudio || !player.crossOrigin){ useSim = true; return; }
   try{
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
