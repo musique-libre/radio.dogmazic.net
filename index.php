@@ -1,170 +1,617 @@
 <?php
-header("Access-Control-Allow-Origin: https://play.dogmazic.net/");
+header("Access-Control-Allow-Origin: https://play.dogmazic.net");
 $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-  <title>Radio Dogmazic</title>
   <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-  <meta name="description" content="">
-  <meta name="keywords" content="">
-  <meta name="team" content="">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-  <script src="/jquery-3.7.1.min.js" ></script>
-
+  <title>Radio Dogmazic</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" id="metaDesc" content="La webradio de l'association Musique Libre : musique libre en continu, licence choisie par chaque artiste.">  <link rel="icon" href="/favicon.ico">
   <style>
-    body {
-      background-color: #91949B;
-      background-color: #222;
-      color: #ff9d00;
+    /* ---- Jetons de design ---------------------------------------------- */
+    :root{
+      --bg:#161419;          /* fond, plus riche que l'ancien #222 */
+      --bg2:#201c24;
+      --ink:#f2eee6;         /* texte principal (blanc chaud) */
+      --muted:#9a93a0;       /* texte secondaire */
+      --line:rgba(255,255,255,.09);
+      --accent:#f06000;   /* orange réel du logo Dogmazic */       /* couleur-signal historique de la radio */
+      --accent-2:#ff8536;
+      --ember:#5f2600;       /* bas du spectre */
+      --font-ui:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
     }
 
-    .center {
+    *{box-sizing:border-box;}
+    html,body{height:100%;}
+    body{
+      margin:0;
+      font-family:var(--font-ui);
+      color:var(--ink);
+      background:
+        radial-gradient(120% 90% at 50% 115%, rgba(240,96,0,.10), transparent 60%),
+        linear-gradient(180deg,var(--bg2),var(--bg) 45%);
+      background-attachment:fixed;
+      min-height:100dvh;
+      overflow-x:hidden;
+    }
+
+    /* Le spectre : bande pleine largeur ancrée en bas, derrière le contenu */
+    #spectrum{
+      position:fixed;
+      left:0;right:0;bottom:0;
+      width:100%;height:180px;
+      z-index:0;
+      pointer-events:none;
+    }
+
+    .radio{
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-direction:column;
+      min-height:100dvh;
+      padding:22px clamp(18px,5vw,48px) 40px;
+    }
+
+    /* ---- Barre haute ---------------------------------------------------- */
+    .radio__top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+    }
+    .status{
+      display:inline-flex;align-items:center;gap:9px;
+      font-family:var(--font-mono);
+      font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+      color:var(--muted);
+    }
+    .status__dot{
+      width:9px;height:9px;border-radius:50%;
+      background:var(--muted);
+      box-shadow:0 0 0 0 rgba(240,96,0,.5);
+    }
+    .radio.is-live .status{color:var(--accent);}
+    .radio.is-live .status__dot{
+      background:var(--accent);
+      animation:tally 1.8s ease-out infinite;
+    }
+    @keyframes tally{
+      0%{box-shadow:0 0 0 0 rgba(240,96,0,.55);}
+      100%{box-shadow:0 0 0 12px rgba(240,96,0,0);}
+    }
+    .top-right{display:inline-flex;align-items:center;gap:14px;}
+    .lang{
+      font-family:var(--font-mono);
+      font-size:11px;letter-spacing:.14em;
+      color:var(--muted);
+      background:transparent;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:6px 12px;
+      cursor:pointer;
+      transition:color .15s ease,border-color .15s ease;
+    }
+    .lang:hover{color:var(--ink);border-color:rgba(255,255,255,.3);}
+    .lang:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
+    .brand{
+      display:inline-flex;
+      background:var(--ink);          /* plaque claire : le médaillon sombre redevient lisible */
+      border-radius:14px;
+      box-shadow:0 6px 18px rgba(0,0,0,.35);
+      padding:9px;
+    }
+    /* On ne montre que le médaillon (haut ~78 % de l'image) ; le script orange,
+       illisible sur clair, est masqué par le débordement. */
+    .brand__clip{width:50px;height:50px;overflow:hidden;line-height:0;}
+    .brand__clip img{width:50px;height:auto;display:block;}
+
+    /* ---- Zone centrale -------------------------------------------------- */
+    .radio__stage{
+      flex:1;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
       text-align:center;
-      width:100%;
+      gap:26px;
+      padding:32px 0;
     }
 
-    a {
-      color: #ff9d00;
+    .art{
+      --level:0;
+      position:relative;
+      width:clamp(180px,42vw,260px);
+      aspect-ratio:1/1;
+      border-radius:14px;
+      overflow:hidden;
+      background:#000;
+      border:1px solid var(--line);
+      box-shadow:
+        0 18px 50px rgba(0,0,0,.55),
+        0 0 calc(20px + var(--level) * 70px) rgba(240,96,0,calc(.10 + var(--level) * .45));
+      transition:box-shadow .12s linear;
+    }
+    .art img{width:100%;height:100%;object-fit:cover;display:block;}
+    /* Indice « lecture » sur la jaquette quand la radio est à l'arrêt */
+    .art__hint{
+      position:absolute;inset:0;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(15,14,18,.45);
+      opacity:1;transition:opacity .25s ease;
+      pointer-events:none;
+    }
+    .art__hint svg{
+      width:64px;height:64px;fill:var(--ink);
+      filter:drop-shadow(0 4px 14px rgba(0,0,0,.6));
+    }
+    .radio.is-live .art__hint{opacity:0;}
+
+    .now{max-width:640px;display:flex;flex-direction:column;gap:6px;align-items:center;}
+    .now__artist{
+      font-size:clamp(26px,6vw,44px);
+      font-weight:800;
+      letter-spacing:-.02em;
+      line-height:1.05;
+      margin:0;
+    }
+    .now__artist a{color:var(--ink);text-decoration:none;}
+    .now__artist a:hover{color:var(--accent-2);}
+    .now__title{
+      font-size:clamp(15px,2.6vw,19px);
+      color:var(--accent);
+      font-weight:600;
+      margin:0;
+    }
+    .now__title a{color:inherit;text-decoration:none;}
+    .now__title a:hover{text-decoration:underline;}
+    .now__album{
+      font-family:var(--font-mono);
+      font-size:12px;letter-spacing:.04em;
+      color:var(--muted);
+      margin:2px 0 0;
+    }
+    .now__album a{color:inherit;text-decoration:none;}
+    .now__album a:hover{color:var(--ink);}
+
+    /* état par défaut / pause / démarrage */
+    .now--idle .now__artist{color:var(--ink);}
+    .now--idle .now__title,.now--idle .now__album{color:var(--muted);}
+
+    /* ---- Commande de lecture ------------------------------------------- */
+    .controls{display:flex;flex-direction:column;align-items:center;gap:18px;}
+    .play{
+      display:inline-flex;align-items:center;gap:12px;
+      font-family:var(--font-mono);
+      font-size:14px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--bg);
+      background:var(--accent);
+      border:none;border-radius:999px;
+      padding:15px 30px;
+      cursor:pointer;
+      transition:transform .12s ease,background .2s ease,box-shadow .2s ease;
+      box-shadow:0 10px 30px rgba(240,96,0,.25);
+    }
+    .play:hover{background:var(--accent-2);transform:translateY(-1px);}
+    .play:active{transform:translateY(0);}
+    .play:focus-visible{outline:3px solid var(--accent-2);outline-offset:3px;}
+    .play svg{width:16px;height:16px;fill:currentColor;}
+
+    .volume{display:flex;align-items:center;gap:10px;color:var(--muted);}
+    .volume svg{width:16px;height:16px;fill:currentColor;opacity:.8;}
+    .volume input[type=range]{
+      -webkit-appearance:none;appearance:none;
+      width:130px;height:4px;border-radius:2px;
+      background:rgba(255,255,255,.16);
+      cursor:pointer;
+    }
+    .volume input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;appearance:none;
+      width:14px;height:14px;border-radius:50%;
+      background:var(--accent);border:none;
+    }
+    .volume input[type=range]::-moz-range-thumb{
+      width:14px;height:14px;border-radius:50%;
+      background:var(--accent);border:none;
+    }
+
+    .fallback{color:var(--muted);font-size:13px;}
+    .fallback a{color:var(--accent);}
+
+    /* ---- Pied ----------------------------------------------------------- */
+    .radio__foot{
+      text-align:center;
+      font-family:var(--font-mono);
+      font-size:11px;letter-spacing:.06em;line-height:1.75;
+      color:var(--muted);
+    }
+    .radio__foot a{color:var(--muted);text-decoration:none;}
+    .radio__foot a:hover{color:var(--ink);}
+
+    @media (prefers-reduced-motion:reduce){
+      .radio.is-live .status__dot{animation:none;}
+      .art{transition:none;}
     }
   </style>
 </head>
 
 <body>
+  <canvas id="spectrum" aria-hidden="true"></canvas>
 
-<div class="center">
+  <main class="radio" id="radio">
+    <header class="radio__top">
+      <span class="status" id="status">
+        <span class="status__dot"></span><span id="statusText">Hors antenne</span>
+      </span>
+      <span class="top-right">
+        <button class="lang" id="langBtn" type="button" aria-label="Switch to English">EN</button>
+        <span class="brand"><span class="brand__clip"><img src="/Logo-DGZ-TRANSPARENT.png" alt="Dogmazic" width="400" height="515"></span></span>
+      </span>
+    </header>
 
-  <img src="/Logo-DGZ-TRANSPARENT.png" alt="Dogmazic Logo" width="400" height="515" style="width: 80%; max-width: 400px; height: auto;">
+    <section class="radio__stage">
+      <div class="art" id="art">
+        <a id="linkAlbum" href="#" target="_blank" rel="noopener" title="Voir l'album sur Dogmazic">
+          <img id="albumart" src="/blank_album_art.png?v=2" alt="Pochette de l'album" width="260" height="260">
+        </a>
+        <span class="art__hint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+      </div>
 
-  <br>
-  <br>
+      <div class="now now--idle" id="now">
+        <h1 class="now__artist" id="artistWrap"><a id="linkArtist" href="#" target="_blank" rel="noopener">Radio Dogmazic</a></h1>
+        <p class="now__title" id="titleWrap"><a id="linkSong" href="#" target="_blank" rel="noopener">Musique libre, en continu</a></p>
+        <p class="now__album"><span id="albumPre">extrait de «&nbsp;</span><a id="albumTitle" href="#" target="_blank" rel="noopener">—</a><span id="albumPost">&nbsp;»</span></p>
+      </div>
 
-  <audio controls id="dogplayer" onpause="refreshInfos()" onplay="refreshInfos()" >
+      <div class="controls">
+        <button class="play" id="play" type="button" aria-pressed="false" aria-label="Écouter la radio">
+          <svg id="playIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>
+          <span id="playLabel">Écouter</span>
+        </button>
+
+        <div class="volume">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+          <input type="range" id="volume" min="0" max="1" step="0.01" value="0.9" aria-label="Volume">
+        </div>
+
+        <p class="fallback">
+          <span id="fbText">Lecteur HTML5 indisponible ? </span><a id="fbLink" href="<?php echo $flux; ?>">Flux direct</a><span id="fbEnd">.</span>
+        </p>
+      </div>
+    </section>
+
+    <footer class="radio__foot">
+      <span id="footLine1">Musique libre · licence choisie par chaque artiste</span><br>
+      <span id="footLine2">Une webradio de l’</span><a id="footAssoc" href="https://musique-libre.org" target="_blank" rel="noopener">association Musique&nbsp;Libre</a>
+      · <a id="footLib" href="https://play.dogmazic.net" target="_blank" rel="noopener">bibliothèque Dogmazic</a>
+    </footer>
+  </main>
+
+  <audio id="player" preload="none">
     <source src="<?php echo $flux; ?>" type="audio/mpeg">
-    <p>
-      Look like your browser can't handle HTML5, here the <a href="<?php echo $flux; ?>">direct link</a>.
-    </p>
   </audio>
 
-  <br>
-  <br>
-
-  <div id="display_infos">
-    <span id="metainfos">
-      <a href='#' title='Show this artist on Dogmazic' id="link_artist" target=_blank ></a> -
-      <a href='#' title='Show this song on Dogmazic' id="link_song" target=_blank ></a>
-    </span>
-
-    <br>
-    <br>
-
-    <a href="#" target=_blank id="link_album">
-      <img src='/blank_album_art.png' alt="Album Art" title="Show this album on Dogmazic" id="albumart" width="125" height="125" style="width:60%; max-width: 125px; height: auto;">
-      <br>
-      <span id="album_title"></span>
-    </a>
-  </div>
-
-  <img src='/pause.png' alt="Pause" title="Paused" id="pauseimg" width="125" height="125" onclick="playRadio()" style="width:60%; max-width: 125px; height: auto;">
-
-</div>
-
-<br/>
-
 <script>
+"use strict";
 
-function playRadio() {
-  document.getElementById('dogplayer').play();
+/* Passe à true dans preview.html (aucune modif nécessaire ici). */
+var PREVIEW = false;
+
+var CFG = {
+  metadataUrl: "/metadata.php?wanted=json",
+  pollMs: 5000,
+  useWebAudio: true    /* mettre à false si un flux non-CORS coupe le son sur iOS :
+                          la lecture reste native, le spectre passe en animation synthétique */
+};
+
+var $ = function(id){ return document.getElementById(id); };
+
+/* ------------------------------------------------------------------ */
+/*  Internationalisation (FR par défaut, EN via bouton ou ?lang=en)    */
+/* ------------------------------------------------------------------ */
+var I18N = {
+  fr: {
+    offAir:"Hors antenne", live:"En direct", paused:"En pause",
+    listen:"Écouter", pause:"Pause",
+    ariaListen:"Écouter la radio", ariaPause:"Mettre en pause",
+    idleTitle:"Musique libre, en continu",
+    albumPre:"extrait de «\u00a0", albumPost:"\u00a0»",
+    albumLinkTitle:"Voir cet album sur Dogmazic",
+    coverAlt:"Pochette de l’album",
+    fallback:"Lecteur HTML5 indisponible ? ", fallbackLink:"Flux direct", fallbackEnd:".",
+    footLine1:"Musique libre · licence choisie par chaque artiste",
+    footLine2:"Une webradio de l’", footAssoc:"association Musique\u00a0Libre", footLib:"bibliothèque Dogmazic",
+    metaDesc:"La webradio de l’association Musique Libre : musique libre en continu, licence choisie par chaque artiste.",
+    langBtn:"EN", langBtnAria:"Switch to English", volume:"Volume"
+  },
+  en: {
+    offAir:"Off air", live:"On air", paused:"Paused",
+    listen:"Listen", pause:"Pause",
+    ariaListen:"Listen to the radio", ariaPause:"Pause playback",
+    idleTitle:"Free music, around the clock",
+    albumPre:"from \u201c", albumPost:"\u201d",
+    albumLinkTitle:"View this album on Dogmazic",
+    coverAlt:"Album cover",
+    fallback:"HTML5 player not working? ", fallbackLink:"Direct stream", fallbackEnd:".",
+    footLine1:"Free music · each artist chooses their own license",
+    footLine2:"A web radio by the ", footAssoc:"Musique\u00a0Libre association", footLib:"Dogmazic music library",
+    metaDesc:"Musique Libre’s web radio: free music around the clock, each artist chooses their own license.",
+    langBtn:"FR", langBtnAria:"Passer en français", volume:"Volume"
+  }
+};
+
+var lang = "fr";
+try {
+  var qs = new URLSearchParams(location.search).get("lang");
+  lang = (qs || (navigator.language || "fr")).slice(0,2).toLowerCase() === "en" ? "en" : "fr";
+} catch(e){}
+
+function T(key){ return I18N[lang][key]; }
+
+function setLang(l){
+  lang = (l === "en") ? "en" : "fr";
+  document.documentElement.lang = lang;
+  $("metaDesc").setAttribute("content", T("metaDesc"));
+  $("albumPre").textContent  = T("albumPre");
+  $("albumPost").textContent = T("albumPost");
+  $("linkAlbum").title = T("albumLinkTitle");
+  $("albumart").alt = T("coverAlt");
+  $("fbText").textContent = T("fallback");
+  $("fbLink").textContent = T("fallbackLink");
+  $("fbEnd").textContent  = T("fallbackEnd");
+  $("footLine1").textContent = T("footLine1");
+  $("footLine2").textContent = T("footLine2");
+  $("footAssoc").textContent = T("footAssoc");
+  $("footLib").textContent   = T("footLib");
+  $("langBtn").textContent = T("langBtn");
+  $("langBtn").setAttribute("aria-label", T("langBtnAria"));
+  $("volume").setAttribute("aria-label", T("volume"));
+  if ($("now").classList.contains("now--idle")) $("linkSong").textContent = T("idleTitle");
+  setPlayingUI(!player.paused);   /* réapplique statut + bouton dans la nouvelle langue */
 }
 
-// Need this as a global var for refreshInfos()
-var current_song_id = null;
+var radio   = $("radio");
+var player  = $("player");
+var playBtn = $("play");
 
-function refreshInfos() {
-  // No refresh if the page isn't visible
-  if (document.hidden) {
-    return;
-  }
-
-  // No refresh if the player is paused
-  if ( document.getElementById('dogplayer').paused ) {
-    $("#display_infos").hide();
-    $("#pauseimg").show();
-    document.title = "Radio Dogmazic - Paused";
-    return;
-  }
-
-  // Ok, get the refresh infos
-  $.getJSON("/metadata.php?wanted=json", function( obj ) {
-
-    document.title = "Radio Dogmazic - Playing \"" + obj['artist'] + " - " + obj['title'] + "\"";
-
-    // If we already set this song infos, quit
-    if ( current_song_id == obj['title_id'] ) {
-      $("#pauseimg").hide();
-      $("#display_infos").show();
-      return;
-    }
-    current_song_id = obj['title_id'];
-
-    // Set all the informations
-    $("#album_title").html( obj['album']);
-    $("#albumart").attr('src', obj['label_img'] );
-    $("#link_album").attr('href', obj['album_url'] );
-    $("#link_artist").attr('href', obj['artist_url']);
-    $("#link_artist").html(obj['artist']);
-    $("#link_song").attr('href', obj['song_url']);
-    $("#link_song").html(obj['title']);
-
-    // And display them
-    $("#pauseimg").hide();
-    $("#display_infos").show();
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: obj['title'],
-      artist: obj['artist'],
-      artwork: [{
-          src: obj['label_img'],
-          sizes: "96x96",
-          type: "image/png"
-        },
-        {
-          // Not the right size, but 256x256 is necessary for
-          // Android device to display the artwork
-          src: obj['label_img'],
-          sizes: "256x256",
-          type: "image/png"
-        }
-      ],
-      album: obj['album'],
-    }); // navigator.mediaSession.metadata
-
-  }); // getJSON
+/* ------------------------------------------------------------------ */
+/*  Lecture                                                            */
+/* ------------------------------------------------------------------ */
+var hasStarted = false;
+function setPlayingUI(on){
+  radio.classList.toggle("is-live", on);
+  if (on) hasStarted = true;
+  $("statusText").textContent = on ? T("live") : (hasStarted ? T("paused") : T("offAir"));
+  $("playLabel").textContent  = on ? T("pause") : T("listen");
+  playBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  playBtn.setAttribute("aria-label", on ? T("ariaPause") : T("ariaListen"));
+  $("linkAlbum").title = on ? T("albumLinkTitle") : T("ariaListen");
+  $("playIcon").innerHTML = on
+    ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'
+    : '<path d="M7 5v14l12-7z"/>';
 }
 
-
-// ---- REFRESH INFOS, when?
-// at page load...
-refreshInfos();
-
-// refresh every X milliseconds
-setInterval(function(){
-  refreshInfos()
-}, 5000); // 5 seconds
-
-// and when we display the page (ex: switching tabs)
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    refreshInfos();
+playBtn.addEventListener("click", function(){
+  ensureAudioGraph();
+  if (player.paused){
+    /* (re)charge la source au clic : évite du buffering silencieux au chargement */
+    if (!player.src && player.querySelector("source")) player.load();
+    player.play().catch(function(){ /* l'utilisateur peut relancer */ });
+  } else {
+    player.pause();
   }
 });
 
-// ---- END REFRESH INFOS
+player.addEventListener("play",  function(){ setPlayingUI(true);  refreshInfos(); });
+player.addEventListener("pause", function(){ setPlayingUI(false); refreshInfos(); });
 
+$("volume").addEventListener("input", function(e){ player.volume = parseFloat(e.target.value); });
+player.volume = 0.9;
+
+/* Jaquette : à l'arrêt, un clic lance la lecture ; en cours de lecture,
+   le lien vers l'album garde son comportement normal. */
+$("linkAlbum").addEventListener("click", function(e){
+  if (player.paused){
+    e.preventDefault();
+    playBtn.click();
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  Métadonnées (même contrat que metadata.php?wanted=json)            */
+/* ------------------------------------------------------------------ */
+var currentSongId = null;
+
+function applyIdle(){
+  $("now").classList.add("now--idle");
+  $("linkSong").textContent = T("idleTitle");
+  currentSongId = null;
+  document.title = "Radio Dogmazic";
+}
+
+$("langBtn").addEventListener("click", function(){ setLang(lang === "fr" ? "en" : "fr"); });
+setLang(lang);   /* applique la langue détectée (navigateur ou ?lang=) */
+
+/* Décline l'URL de pochette (image.php) dans une taille donnée. */
+function artURL(u, size){
+  if (!u || u.indexOf("data:") === 0) return u;   /* ne pas altérer une image en data: URI */
+  return /size=\d+x\d+/i.test(u)
+    ? u.replace(/size=\d+x\d+/i, "size=" + size)
+    : u + (u.indexOf("?") < 0 ? "?" : "&") + "size=" + size;
+}
+
+function applyTrack(o){
+  $("now").classList.remove("now--idle");
+  document.title = "▶ " + o.artist + " — " + o.title + " · Radio Dogmazic";
+
+  if (currentSongId === o.title_id) return;   /* pas de reflow inutile */
+  currentSongId = o.title_id;
+
+  $("linkArtist").textContent = o.artist;
+  $("linkArtist").href = o.artist_url;
+  $("linkSong").textContent = o.title;
+  $("linkSong").href = o.song_url;
+  $("albumTitle").textContent = o.album;
+  $("albumTitle").href = o.album_url;
+  $("linkAlbum").href = o.album_url;
+  $("albumart").src = artURL(o.label_img, "512x512");
+
+  if ("mediaSession" in navigator){
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:o.title, artist:o.artist, album:o.album,
+      artwork:[
+        {src:artURL(o.label_img,"96x96"),   sizes:"96x96",   type:"image/png"},
+        {src:artURL(o.label_img,"192x192"), sizes:"192x192", type:"image/png"},
+        {src:artURL(o.label_img,"256x256"), sizes:"256x256", type:"image/png"},
+        {src:artURL(o.label_img,"512x512"), sizes:"512x512", type:"image/png"}
+      ]
+    });
+  }
+}
+
+function refreshInfos(){
+  if (PREVIEW) return;                 /* preview.html gère ses propres données */
+  if (document.hidden) return;
+  if (player.paused){ applyIdle(); return; }
+
+  fetch(CFG.metadataUrl, {cache:"no-store"})
+    .then(function(r){ return r.ok ? r.text() : Promise.reject(); })
+    .then(function(txt){
+      var o;
+      try { o = JSON.parse(txt); } catch(e){ o = null; }   /* "No music" -> texte non-JSON */
+      if (o && o.title) applyTrack(o);
+      else applyIdle();
+    })
+    .catch(function(){ /* on garde le dernier état connu */ });
+}
+
+if (!PREVIEW){
+  refreshInfos();
+  setInterval(refreshInfos, CFG.pollMs);
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible") refreshInfos();
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Spectre audio — élément signature                                  */
+/*  Vrai spectre via Web Audio si le flux est CORS-friendly,           */
+/*  sinon repli sur une animation synthétique (jamais cassé).          */
+/* ------------------------------------------------------------------ */
+var canvas = $("spectrum");
+var ctx2d  = canvas.getContext("2d");
+var artEl  = $("art");
+var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+var audioCtx=null, analyser=null, freq=null, srcNode=null, graphReady=false;
+var bars=[], targets=[], barCount=0, dpr=1, silentFrames=0, useSim=false;
+
+function sizeCanvas(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = Math.floor(canvas.clientWidth  * dpr);
+  canvas.height = Math.floor(canvas.clientHeight * dpr);
+  barCount = Math.max(24, Math.min(96, Math.floor(canvas.clientWidth / 14)));
+  if (barCount % 2) barCount--;
+  bars = new Array(barCount).fill(0);
+  targets = new Array(barCount).fill(0);
+}
+window.addEventListener("resize", sizeCanvas);
+sizeCanvas();
+
+function ensureAudioGraph(){
+  if (graphReady || PREVIEW) return;
+  if (!CFG.useWebAudio){ useSim = true; return; }  /* spectre synthétique, on ne touche pas au son */
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.82;
+    freq = new Uint8Array(analyser.frequencyBinCount);
+    srcNode = audioCtx.createMediaElementSource(player);
+    srcNode.connect(analyser);
+    analyser.connect(audioCtx.destination);  /* sinon le son est coupé */
+    graphReady = true;
+  }catch(e){ useSim = true; }               /* pas de Web Audio -> synthétique */
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+
+function computeTargets(t){
+  var playing = PREVIEW ? true : !player.paused;
+  var half = barCount / 2;
+
+  if (!playing){                            /* veille : respiration discrète */
+    for (var i=0;i<barCount;i++)
+      targets[i] = 0.05 + 0.02 * Math.sin(t/700 + i*0.5);
+    return;
+  }
+
+  var haveData = false;
+  if (graphReady && !useSim){
+    analyser.getByteFrequencyData(freq);
+    var sum=0, usable=Math.floor(freq.length*0.72);
+    for (var k=0;k<half;k++){
+      var idx = Math.floor(k/half * usable);
+      var v = freq[idx]/255;
+      sum += freq[idx];
+      var val = 0.05 + v*0.95;
+      targets[half + k]     = val;          /* moitié droite  */
+      targets[half - 1 - k] = val;          /* miroir gauche  */
+    }
+    haveData = sum > 0;
+    /* Flux non-CORS => données à zéro : on bascule en synthétique */
+    if (!haveData){ silentFrames++; if (silentFrames > 45) useSim = true; }
+    else silentFrames = 0;
+    if (haveData) return;
+  }
+
+  /* Mode synthétique : quelques oscillateurs pour un rendu « musical » */
+  for (var j=0;j<half;j++){
+    var env = Math.pow(1 - j/half, 0.7);    /* plus d'énergie dans les graves */
+    var wob = 0.5 + 0.5*Math.sin(t/260 + j*0.55)
+                  * Math.sin(t/970 + j*0.2);
+    var beat = 0.15*Math.max(0, Math.sin(t/430));
+    var val2 = 0.06 + env*(0.55*wob + beat) + Math.random()*0.05;
+    targets[half + j]     = val2;
+    targets[half - 1 - j] = val2;
+  }
+}
+
+function draw(t){
+  computeTargets(t);
+
+  var ease = reduce ? 1 : 0.32;
+  var level = 0;
+  for (var i=0;i<barCount;i++){
+    bars[i] += (targets[i] - bars[i]) * ease;
+    level += bars[i];
+  }
+  level = level / barCount;
+  artEl.style.setProperty("--level", (PREVIEW ? level : (player.paused ? 0 : level)).toFixed(3));
+
+  var W=canvas.width, H=canvas.height;
+  ctx2d.clearRect(0,0,W,H);
+  var gap = 3*dpr;
+  var bw = (W - gap*(barCount-1)) / barCount;
+
+  for (var b=0;b<barCount;b++){
+    var h = Math.max(2*dpr, bars[b]*H*0.92);
+    var x = b*(bw+gap);
+    var y = H - h;
+    var g = ctx2d.createLinearGradient(0, H, 0, y);
+    g.addColorStop(0, "rgba(95,38,0,.35)");
+    g.addColorStop(0.55, "rgba(240,96,0,.85)");
+    g.addColorStop(1, "#ff8536");
+    ctx2d.fillStyle = g;
+    ctx2d.shadowColor = "rgba(240,96,0,.5)";
+    ctx2d.shadowBlur = 8*dpr*Math.min(1, bars[b]*1.6);
+    ctx2d.fillRect(x, y, bw, h);
+  }
+
+  if (!reduce) requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+if (reduce) requestAnimationFrame(draw);   /* un rendu statique si mouvement réduit */
 </script>
-
 </body>
 </html>
