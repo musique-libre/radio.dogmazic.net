@@ -216,6 +216,17 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
       background:var(--accent);border:none;
     }
 
+    .animtoggle{
+      font-family:var(--font-mono);
+      font-size:11px;letter-spacing:.06em;
+      color:var(--muted);
+      background:none;border:none;cursor:pointer;
+      text-decoration:underline dotted;
+      padding:2px 4px;
+    }
+    .animtoggle:hover{color:var(--ink);}
+    .animtoggle:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
+
     .fallback{color:var(--muted);font-size:13px;}
     .fallback a{color:var(--accent);}
 
@@ -275,6 +286,8 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
           <input type="range" id="volume" min="0" max="1" step="0.01" value="0.9" aria-label="Volume">
         </div>
 
+        <button class="animtoggle" id="animBtn" type="button" aria-pressed="false"></button>
+
         <p class="fallback">
           <span id="fbText">Lecteur HTML5 indisponible ? </span><a id="fbLink" href="<?php echo $flux; ?>">Flux direct</a><span id="fbEnd">.</span>
         </p>
@@ -305,6 +318,10 @@ var CFG = {
                           la lecture reste native, le spectre passe en animation synthétique */
 };
 
+/* Préférence utilisateur : animation du spectre (persistée localement) */
+var animOn = true;
+try { animOn = localStorage.getItem("dgz-anim") !== "off"; } catch(e){}
+
 var $ = function(id){ return document.getElementById(id); };
 
 /* ------------------------------------------------------------------ */
@@ -323,7 +340,8 @@ var I18N = {
     footLine1:"Musique libre · licence choisie par chaque artiste",
     footLine2:"Une webradio de l’", footAssoc:"association Musique\u00a0Libre", footLib:"bibliothèque Dogmazic",
     metaDesc:"La webradio de l’association Musique Libre : musique libre en continu, licence choisie par chaque artiste.",
-    langBtn:"EN", langBtnAria:"Switch to English", volume:"Volume"
+    langBtn:"EN", langBtnAria:"Switch to English", volume:"Volume",
+    animStop:"Couper l\u2019animation", animStart:"R\u00e9activer l\u2019animation"
   },
   en: {
     offAir:"Off air", live:"On air", paused:"Paused",
@@ -337,7 +355,8 @@ var I18N = {
     footLine1:"Free music · each artist chooses their own license",
     footLine2:"A web radio by the ", footAssoc:"Musique\u00a0Libre association", footLib:"Dogmazic music library",
     metaDesc:"Musique Libre’s web radio: free music around the clock, each artist chooses their own license.",
-    langBtn:"FR", langBtnAria:"Passer en français", volume:"Volume"
+    langBtn:"FR", langBtnAria:"Passer en fran\u00e7ais", volume:"Volume",
+    animStop:"Turn animation off", animStart:"Turn animation on"
   }
 };
 
@@ -367,6 +386,7 @@ function setLang(l){
   $("langBtn").textContent = T("langBtn");
   $("langBtn").setAttribute("aria-label", T("langBtnAria"));
   $("volume").setAttribute("aria-label", T("volume"));
+  updateAnimBtn();
   if ($("now").classList.contains("now--idle")) $("linkSong").textContent = T("idleTitle");
   setPlayingUI(!player.paused);   /* réapplique statut + bouton dans la nouvelle langue */
 }
@@ -516,7 +536,10 @@ function sizeCanvas(){
   bars = new Array(barCount).fill(0);
   targets = new Array(barCount).fill(0);
 }
-window.addEventListener("resize", sizeCanvas);
+window.addEventListener("resize", function(){
+  sizeCanvas();
+  if (rafId === null) renderStatic();   /* boucle arrêtée : on repeint une frame */
+});
 sizeCanvas();
 
 function ensureAudioGraph(){
@@ -537,14 +560,7 @@ function ensureAudioGraph(){
 }
 
 function computeTargets(t){
-  var playing = PREVIEW ? true : !player.paused;
   var half = barCount / 2;
-
-  if (!playing){                            /* veille : respiration discrète */
-    for (var i=0;i<barCount;i++)
-      targets[i] = 0.05 + 0.02 * Math.sin(t/700 + i*0.5);
-    return;
-  }
 
   var haveData = false;
   if (graphReady && !useSim){
@@ -577,23 +593,11 @@ function computeTargets(t){
   }
 }
 
-function draw(t){
-  computeTargets(t);
-
-  var ease = reduce ? 1 : 0.32;
-  var level = 0;
-  for (var i=0;i<barCount;i++){
-    bars[i] += (targets[i] - bars[i]) * ease;
-    level += bars[i];
-  }
-  level = level / barCount;
-  artEl.style.setProperty("--level", (PREVIEW ? level : (player.paused ? 0 : level)).toFixed(3));
-
+function paint(){
   var W=canvas.width, H=canvas.height;
   ctx2d.clearRect(0,0,W,H);
   var gap = 3*dpr;
   var bw = (W - gap*(barCount-1)) / barCount;
-
   for (var b=0;b<barCount;b++){
     var h = Math.max(2*dpr, bars[b]*H*0.92);
     var x = b*(bw+gap);
@@ -603,15 +607,75 @@ function draw(t){
     g.addColorStop(0.55, "rgba(240,96,0,.85)");
     g.addColorStop(1, "#ff8536");
     ctx2d.fillStyle = g;
-    ctx2d.shadowColor = "rgba(240,96,0,.5)";
-    ctx2d.shadowBlur = 8*dpr*Math.min(1, bars[b]*1.6);
     ctx2d.fillRect(x, y, bw, h);
   }
-
-  if (!reduce) requestAnimationFrame(draw);
 }
-requestAnimationFrame(draw);
-if (reduce) requestAnimationFrame(draw);   /* un rendu statique si mouvement réduit */
+
+function step(t){
+  computeTargets(t);
+  var level = 0;
+  for (var i=0;i<barCount;i++){
+    bars[i] += (targets[i] - bars[i]) * 0.32;
+    level += bars[i];
+  }
+  artEl.style.setProperty("--level", (level/barCount).toFixed(3));
+  paint();
+}
+
+/* Une seule frame, au repos : spectre bas, lueur éteinte. */
+function renderStatic(){
+  for (var i=0;i<barCount;i++) bars[i] = 0.05 + 0.02*Math.sin(i*0.5);
+  artEl.style.setProperty("--level","0");
+  paint();
+}
+
+/* ---- Contrôleur d'animation (éco CPU) ------------------------------ */
+/* La boucle ne tourne que si : lecture en cours, page visible,         */
+/* animation non coupée par l'utilisateur, pas de motion réduit.        */
+/* ~30 i/s pendant la lecture : suffisant pour un spectre.              */
+var FRAME_MS = 33;
+var rafId = null, lastFrame = -1e9;
+
+function isPlaying(){
+  if (PREVIEW) return (typeof previewPlaying !== "undefined") && previewPlaying;
+  return !player.paused;
+}
+function shouldAnimate(){
+  return animOn && !reduce && !document.hidden && isPlaying();
+}
+
+function frame(t){
+  if (!shouldAnimate()){ rafId = null; renderStatic(); return; }
+  if (t - lastFrame >= FRAME_MS){ lastFrame = t; step(t); }
+  rafId = requestAnimationFrame(frame);
+}
+
+/* (Re)démarre ou arrête la boucle selon l'état courant. */
+function kick(){
+  if (shouldAnimate()){
+    if (rafId === null) rafId = requestAnimationFrame(frame);
+  } else if (rafId === null){
+    renderStatic();
+  }
+}
+
+player.addEventListener("play",  kick);
+player.addEventListener("pause", kick);
+/* Écran éteint ou onglet caché : la boucle s'arrête, l'audio continue. */
+document.addEventListener("visibilitychange", kick);
+
+function updateAnimBtn(){
+  $("animBtn").textContent = animOn ? T("animStop") : T("animStart");
+  $("animBtn").setAttribute("aria-pressed", animOn ? "false" : "true");
+}
+$("animBtn").addEventListener("click", function(){
+  animOn = !animOn;
+  try { localStorage.setItem("dgz-anim", animOn ? "on" : "off"); } catch(e){}
+  updateAnimBtn();
+  kick();
+});
+
+kick();   /* état initial : rendu statique tant que rien ne joue */
 </script>
 </body>
 </html>
