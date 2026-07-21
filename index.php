@@ -1,6 +1,10 @@
 <?php
 header("Access-Control-Allow-Origin: https://play.dogmazic.net");
-$flux = 'https://radio.dogmazic.net:8001/stream.mp3';
+include_once('conf.inc.php');
+$flux         = 'https://radio.dogmazic.net:8001/stream.mp3';
+$playlist_url = (isset($playlist_id) && $playlist_id !== '')
+  ? 'https://play.dogmazic.net/playlist.php?action=show&playlist_id=' . urlencode($playlist_id)
+  : '';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -230,6 +234,19 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
     .animtoggle:hover{color:var(--ink);}
     .animtoggle:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 
+    .playlist{
+      display:inline-flex;align-items:center;gap:8px;
+      font-family:var(--font-mono);
+      font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--muted);text-decoration:none;
+      padding:7px 14px;
+      border:1px solid var(--line);border-radius:999px;
+      transition:color .2s ease,border-color .2s ease,background .2s ease;
+    }
+    .playlist:hover{color:var(--ink);border-color:rgba(240,96,0,.5);background:rgba(240,96,0,.06);}
+    .playlist:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
+    .playlist svg{width:13px;height:13px;fill:currentColor;opacity:.85;}
+
     .fallback{color:var(--muted);font-size:13px;}
     .fallback a{color:var(--accent);}
 
@@ -291,6 +308,13 @@ $flux = 'https://radio.dogmazic.net:8001/stream.mp3';
 
         <button class="animtoggle" id="animBtn" type="button" aria-pressed="false"></button>
 
+<?php if ($playlist_url): ?>
+        <a class="playlist" id="playlistLink" href="<?php echo htmlspecialchars($playlist_url, ENT_QUOTES); ?>" target="_blank" rel="noopener" title="Voir la playlist en cours sur Dogmazic">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h13v2H3zm0 5h13v2H3zm0 5h9v2H3zm13-4l6 3.5-6 3.5z"/></svg>
+          <span id="playlistLabel">Playlist en cours</span>
+        </a>
+<?php endif; ?>
+
         <p class="fallback">
           <span id="fbText">Lecteur HTML5 indisponible ? </span><a id="fbLink" href="<?php echo $flux; ?>">Flux direct</a><span id="fbEnd">.</span>
         </p>
@@ -350,7 +374,8 @@ var I18N = {
     metaDesc:"Le compagnon musical de l’association Musique Libre : musique libre en continu, licence choisie par chaque artiste.",
     langBtn:"EN", langBtnAria:"Switch to English", volume:"Volume",
     animStop:"Couper l\u2019animation", animStart:"R\u00e9activer l\u2019animation",
-    connecting:"Connexion\u2026"
+    connecting:"Connexion\u2026",
+    playlist:"Playlist en cours", playlistTitle:"Voir la playlist en cours sur Dogmazic"
   },
   en: {
     offAir:"Off air", live:"On air", paused:"Paused",
@@ -367,7 +392,8 @@ var I18N = {
     metaDesc:"Musique Libre’s musical companion: free music around the clock, each artist chooses their own license.",
     langBtn:"FR", langBtnAria:"Passer en fran\u00e7ais", volume:"Volume",
     animStop:"Turn animation off", animStart:"Turn animation on",
-    connecting:"Connecting\u2026"
+    connecting:"Connecting\u2026",
+    playlist:"Current playlist", playlistTitle:"View the current playlist on Dogmazic"
   }
 };
 
@@ -398,6 +424,8 @@ function setLang(l){
   $("langBtn").setAttribute("aria-label", T("langBtnAria"));
   $("volume").setAttribute("aria-label", T("volume"));
   $("brandLink").title = T("brandLink");
+  var plLabel = $("playlistLabel"); if (plLabel) plLabel.textContent = T("playlist");
+  var plLink  = $("playlistLink");  if (plLink)  plLink.title = T("playlistTitle");
   $("brandLink").setAttribute("aria-label", T("brandLink"));
   updateAnimBtn();
   if ($("now").classList.contains("now--idle")) $("linkSong").textContent = T("idleTitle");
