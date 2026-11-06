@@ -93,6 +93,9 @@ switch ($wanted) {
     case 'img':
         echo $obj->label_img;
         break;
+    case 'img_go_svg':
+        go($obj->label_img.'&generate=1');
+        break;
     case 'img_go':
         go($obj->label_img);
         break;
